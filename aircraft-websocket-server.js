@@ -17,38 +17,50 @@ const server = http.createServer((req, res) => {
 // Create WebSocket server
 const wss = new WebSocket.Server({ server });
 
-// Aircraft data with initial positions around origin (0,0)
+// Aircraft data with initial positions around origin (0,0,0)
 const aircraftData = {
   'N9UX': {
     tailNumber: 'N9UX',
-    x: 1.5,
-    z: 2.3,
-    altitude: 1000,
-    heading: 90,
-    pitch: 0,
-    roll: 0,
+    position: {
+      x: 0,
+      y: 0,
+      z: 0
+    },
+    rotation: {
+      yaw: 132.61,
+      roll: -4.28,
+      pitch: -0.36
+    },
     speed: 150,
     timestamp: Date.now()
   },
   'N520CX': {
     tailNumber: 'N520CX',
-    x: -0.8,
-    z: 3.1,
-    altitude: 1200,
-    heading: 180,
-    pitch: 5,
-    roll: 2,
+    position: {
+      x: 100,
+      y: 0,
+      z: 100
+    },
+    rotation: {
+      yaw: 180.91,
+      roll: -0.88,
+      pitch: 5.49
+    },
     speed: 200,
     timestamp: Date.now()
   },
   'N452': {
     tailNumber: 'N452',
-    x: 2.1,
-    z: -1.2,
-    altitude: 800,
-    heading: 270,
-    pitch: -2,
-    roll: -1,
+    position: {
+      x: 2.1,
+      y: 0,
+      z: -1.2
+    },
+    rotation: {
+      yaw: 270,
+      roll: -1,
+      pitch: -2
+    },
     speed: 180,
     timestamp: Date.now()
   }
@@ -59,17 +71,43 @@ function updateAircraftPositions() {
   Object.keys(aircraftData).forEach(tailNumber => {
     const aircraft = aircraftData[tailNumber];
     
-    // Simulate aircraft movement around origin (0,0)
+    // Simulate aircraft movement around origin (0,0,0)
     const xChange = (Math.random() - 0.5) * 0.1; // Small x changes
+    const yChange = (Math.random() - 0.5) * 0.1; // Small y changes
     const zChange = (Math.random() - 0.5) * 0.1; // Small z changes
-    const altChange = (Math.random() - 0.5) * 20; // Altitude changes
-    const headingChange = (Math.random() - 0.5) * 3; // Gradual heading changes
     
     // Update position
-    aircraft.x += xChange;
-    aircraft.z += zChange;
-    aircraft.altitude = Math.max(500, aircraft.altitude + altChange); // Minimum altitude
-    aircraft.heading = (aircraft.heading + headingChange) % 360; // Keep heading 0-360
+    aircraft.position.x += xChange;
+    aircraft.position.y += yChange;
+    aircraft.position.z += zChange;
+    
+    // Update rotation with much more variation
+    const yawChange = (Math.random() - 0.5) * 8; // Much more yaw variation
+    const rollChange = (Math.random() - 0.5) * 6; // Much more roll variation
+    const pitchChange = (Math.random() - 0.5) * 6; // Much more pitch variation
+    
+    aircraft.rotation.yaw = (aircraft.rotation.yaw + yawChange) % 360; // Keep yaw 0-360
+    aircraft.rotation.roll += rollChange;
+    aircraft.rotation.pitch += pitchChange;
+    
+    // Keep rotation values reasonable but allow much more variation
+    aircraft.rotation.roll = Math.max(-75, Math.min(75, aircraft.rotation.roll)); // Limit roll to ±75 degrees
+    aircraft.rotation.pitch = Math.max(-75, Math.min(75, aircraft.rotation.pitch)); // Limit pitch to ±75 degrees
+    
+    // Add some occasional larger movements for more realistic flight behavior
+    if (Math.random() < 0.15) { // 15% chance of larger movement
+      aircraft.rotation.yaw += (Math.random() - 0.5) * 25; // Much larger yaw change
+      aircraft.rotation.roll += (Math.random() - 0.5) * 20; // Much larger roll change
+      aircraft.rotation.pitch += (Math.random() - 0.5) * 20; // Much larger pitch change
+    }
+    
+    // Add some extreme movements occasionally for dramatic flight changes
+    if (Math.random() < 0.05) { // 5% chance of extreme movement
+      aircraft.rotation.yaw += (Math.random() - 0.5) * 45; // Extreme yaw change
+      aircraft.rotation.roll += (Math.random() - 0.5) * 30; // Extreme roll change
+      aircraft.rotation.pitch += (Math.random() - 0.5) * 30; // Extreme pitch change
+    }
+    
     aircraft.timestamp = Date.now();
     
     // Add some variation to speed
@@ -78,12 +116,12 @@ function updateAircraftPositions() {
     
     // Keep aircraft within a reasonable range around origin (optional boundary)
     const maxDistance = 10; // Maximum distance from origin
-    const distance = Math.sqrt(aircraft.x * aircraft.x + aircraft.z * aircraft.z);
+    const distance = Math.sqrt(aircraft.position.x * aircraft.position.x + aircraft.position.z * aircraft.position.z);
     if (distance > maxDistance) {
       // Pull aircraft back towards origin
       const factor = maxDistance / distance;
-      aircraft.x *= factor;
-      aircraft.z *= factor;
+      aircraft.position.x *= factor;
+      aircraft.position.z *= factor;
     }
   });
 }
@@ -96,10 +134,18 @@ function broadcastAircraftPositions() {
   const formattedData = {};
   Object.keys(aircraftData).forEach(tailNumber => {
     const aircraft = aircraftData[tailNumber];
-    // Use x/z coordinates directly
+    // Use position and rotation objects directly
     formattedData[tailNumber] = {
-      x: aircraft.x,
-      z: aircraft.z
+      position: {
+        x: aircraft.position.x,
+        y: aircraft.position.y,
+        z: aircraft.position.z
+      },
+      rotation: {
+        yaw: aircraft.rotation.yaw,
+        roll: aircraft.rotation.roll,
+        pitch: aircraft.rotation.pitch
+      }
     };
   });
   
@@ -128,8 +174,16 @@ wss.on('connection', (ws, req) => {
   Object.keys(aircraftData).forEach(tailNumber => {
     const aircraft = aircraftData[tailNumber];
     formattedData[tailNumber] = {
-      x: aircraft.x,
-      z: aircraft.z
+      position: {
+        x: aircraft.position.x,
+        y: aircraft.position.y,
+        z: aircraft.position.z
+      },
+      rotation: {
+        yaw: aircraft.rotation.yaw,
+        roll: aircraft.rotation.roll,
+        pitch: aircraft.rotation.pitch
+      }
     };
   });
   
