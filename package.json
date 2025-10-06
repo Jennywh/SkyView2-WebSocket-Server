@@ -1,0 +1,30 @@
+{
+  "name": "skyview2-websocket-server",
+  "version": "1.0.0",
+  "description": "WebSocket server for SkyView2 aircraft tracking",
+  "main": "aircraft-websocket-server.js",
+  "scripts": {
+    "start": "node aircraft-websocket-server.js",
+    "mobile": "node mobile-server.js",
+    "dev": "nodemon aircraft-websocket-server.js",
+    "test": "node test-client.js"
+  },
+  "keywords": [
+    "websocket",
+    "aircraft",
+    "tracking",
+    "real-time",
+    "skyview2"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

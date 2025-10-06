@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkyView2 Mobile Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .status-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        
+        .status.connecting {
+            background: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffeaa7;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat {
+            text-align: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #6c757d;
+            text-transform: uppercase;
+        }
+        
+        .aircraft-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-left: 5px solid #007bff;
+        }
+        
+        .aircraft-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .aircraft-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .aircraft-status {
+            background: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .aircraft-data {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .data-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .data-label {
+            font-size: 11px;
+            color: #6c757d;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        
+        .data-value {
+            font-size: 14px;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .coordinates {
+            grid-column: 1 / -1;
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        
+        .coordinates .data-value {
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .no-data {
+            text-align: center;
+            color: #6c757d;
+            padding: 40px 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .refresh-btn:hover {
+            background: #0056b3;
+            transform: scale(1.1);
+        }
+        
+        .refresh-btn:active {
+            transform: scale(0.95);
+        }
+        
+        @media (max-width: 480px) {
+            .stats {
+                grid-template-columns: 1fr;
+            }
+            
+            .aircraft-data {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✈️ SkyView2 Mobile Test</h1>
+            <p>Real-time Aircraft Tracking</p>
+        </div>
+        
+        <div class="status-card">
+            <div id="status" class="status connecting">
+                🔄 Connecting to WebSocket server...
+            </div>
+            
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="message-count">0</div>
+                    <div class="stat-label">Messages</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="aircraft-count">0</div>
+                    <div class="stat-label">Aircraft</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="last-update">--:--</div>
+                    <div class="stat-label">Last Update</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="connection-time">--:--</div>
+                    <div class="stat-label">Connected</div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="aircraft-container">
+            <div class="no-data">
+                <h3>📡 Waiting for aircraft data...</h3>
+                <p>Make sure the WebSocket server is running</p>
+            </div>
+        </div>
+    </div>
+    
+    <button class="refresh-btn" onclick="refreshConnection()" title="Refresh Connection">
+        🔄
+    </button>
+
+    <script>
+        let ws = null;
+        let messageCounter = 0;
+        let connectionStartTime = null;
+        let lastUpdateTime = null;
+        
+        const status = document.getElementById('status');
+        const messageCount = document.getElementById('message-count');
+        const aircraftCount = document.getElementById('aircraft-count');
+        const lastUpdate = document.getElementById('last-update');
+        const connectionTime = document.getElementById('connection-time');
+        const aircraftContainer = document.getElementById('aircraft-container');
+        
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.close();
+            }
+            
+            status.textContent = '🔄 Connecting to WebSocket server...';
+            status.className = 'status connecting';
+            
+            ws = new WebSocket('ws://192.168.0.95:8081');
+            
+            ws.onopen = function() {
+                status.textContent = '✅ Connected to WebSocket server!';
+                status.className = 'status connected';
+                connectionStartTime = new Date();
+                updateConnectionTime();
+            };
+            
+            ws.onmessage = function(event) {
+                try {
+                    const message = JSON.parse(event.data);
+                    messageCounter++;
+                    messageCount.textContent = messageCounter;
+                    lastUpdateTime = new Date();
+                    lastUpdate.textContent = lastUpdateTime.toLocaleTimeString();
+                    
+                    if (message.type === 'aircraft_positions') {
+                        displayAircraft(message.data);
+                        aircraftCount.textContent = message.data.length;
+                    } else if (message.type === 'server_response') {
+                        console.log('Server response:', message.message);
+                    }
+                } catch (error) {
+                    console.error('Error parsing message:', error);
+                }
+            };
+            
+            ws.onerror = function(error) {
+                status.textContent = '❌ WebSocket error - Check if server is running';
+                status.className = 'status disconnected';
+            };
+            
+            ws.onclose = function(event) {
+                status.textContent = `❌ Disconnected (${event.code})`;
+                status.className = 'status disconnected';
+            };
+        }
+        
+        function displayAircraft(aircraftData) {
+            if (aircraftData.length === 0) {
+                aircraftContainer.innerHTML = '<div class="no-data"><h3>📡 No aircraft data received</h3></div>';
+                return;
+            }
+            
+            aircraftContainer.innerHTML = '';
+            
+            aircraftData.forEach((aircraft, index) => {
+                const tailNumbers = ['N9UX', 'N520CX', 'N452'];
+                const tailNumber = tailNumbers[index] || `Aircraft ${index + 1}`;
+                const card = document.createElement('div');
+                card.className = 'aircraft-card';
+                card.innerHTML = `
+                    <div class="aircraft-header">
+                        <div class="aircraft-name">✈️ ${tailNumber}</div>
+                        <div class="aircraft-status">Active</div>
+                    </div>
+                    
+                    <div class="coordinates">
+                        <div class="data-label">Position Coordinates</div>
+                        <div class="data-value">
+                            X: ${aircraft.x.toFixed(2)}<br>
+                            Z: ${aircraft.z.toFixed(2)}
+                        </div>
+                    </div>
+                `;
+                aircraftContainer.appendChild(card);
+            });
+        }
+        
+        function updateConnectionTime() {
+            if (connectionStartTime) {
+                const now = new Date();
+                const diff = Math.floor((now - connectionStartTime) / 1000);
+                const minutes = Math.floor(diff / 60);
+                const seconds = diff % 60;
+                connectionTime.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+        
+        function refreshConnection() {
+            connect();
+        }
+        
+        // Auto-refresh connection time every second
+        setInterval(updateConnectionTime, 1000);
+        
+        // Initial connection
+        connect();
+        
+        // Auto-reconnect every 30 seconds if disconnected
+        setInterval(() => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                console.log('Auto-reconnecting...');
+                connect();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
+

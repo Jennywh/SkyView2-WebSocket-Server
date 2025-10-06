@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SkyView2 WebSocket Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .aircraft { margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        .aircraft h3 { margin: 0 0 5px 0; color: #333; }
+        .position { font-size: 14px; color: #666; }
+    </style>
+</head>
+<body>
+    <h1>🚀 SkyView2 WebSocket Test</h1>
+    
+    <div id="status" class="status disconnected">
+        Connecting to WebSocket server...
+    </div>
+    
+    <div id="aircraft-list"></div>
+    
+    <div id="info">
+        <h3>📊 Server Info</h3>
+        <p>Messages received: <span id="message-count">0</span></p>
+        <p>Last update: <span id="last-update">Never</span></p>
+    </div>
+
+    <script>
+        const status = document.getElementById('status');
+        const aircraftList = document.getElementById('aircraft-list');
+        const messageCount = document.getElementById('message-count');
+        const lastUpdate = document.getElementById('last-update');
+        
+        let messageCounter = 0;
+        
+        const ws = new WebSocket('ws://localhost:8080');
+        
+        ws.onopen = function() {
+            status.textContent = '✅ Connected to WebSocket server!';
+            status.className = 'status connected';
+        };
+        
+        ws.onmessage = function(event) {
+            try {
+                const message = JSON.parse(event.data);
+                messageCounter++;
+                messageCount.textContent = messageCounter;
+                lastUpdate.textContent = new Date().toLocaleTimeString();
+                
+                if (message.type === 'aircraft_positions') {
+                    displayAircraft(message.data);
+                } else if (message.type === 'server_response') {
+                    console.log('Server response:', message.message);
+                }
+            } catch (error) {
+                console.error('Error parsing message:', error);
+            }
+        };
+        
+        ws.onerror = function(error) {
+            status.textContent = '❌ WebSocket error: ' + error;
+            status.className = 'status disconnected';
+        };
+        
+        ws.onclose = function(event) {
+            status.textContent = '❌ WebSocket disconnected: ' + event.code + ' ' + event.reason;
+            status.className = 'status disconnected';
+        };
+        
+        function displayAircraft(aircraftData) {
+            aircraftList.innerHTML = '';
+            
+            aircraftData.forEach(aircraft => {
+                const div = document.createElement('div');
+                div.className = 'aircraft';
+                div.innerHTML = `
+                    <h3>✈️ ${aircraft.tailNumber}</h3>
+                    <div class="position">
+                        <strong>Position:</strong> Lat ${aircraft.latitude.toFixed(4)}, Lon ${aircraft.longitude.toFixed(4)}<br>
+                        <strong>Altitude:</strong> ${aircraft.altitude.toFixed(0)} ft<br>
+                        <strong>Heading:</strong> ${aircraft.heading.toFixed(1)}°<br>
+                        <strong>Speed:</strong> ${aircraft.speed.toFixed(0)} knots<br>
+                        <strong>Updated:</strong> ${new Date(aircraft.timestamp).toLocaleTimeString()}
+                    </div>
+                `;
+                aircraftList.appendChild(div);
+            });
+        }
+        
+        // Send a test message
+        setTimeout(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'test_message',
+                    data: 'Hello from web client'
+                }));
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
+
