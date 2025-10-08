@@ -45,131 +45,23 @@ const server = http.createServer((req, res) => {
   });
 });
 
-// Create WebSocket server (same as aircraft server)
-const wss = new WebSocket.Server({ server });
-
-// Aircraft data with initial positions
-const aircraftData = {
-  'N9UX': {
-    x: 0,
-    z: 0
-  },
-  'N520CX': {
-    x: 0,
-    z: 0
-  },
-  'N452': {
-    x: 0,
-    z: 0
-  }
-};
-
-// Function to update aircraft positions (simulate movement)
-function updateAircraftPositions() {
-  Object.keys(aircraftData).forEach(tailNumber => {
-    const aircraft = aircraftData[tailNumber];
-    
-    // Simulate movement
-    const xChange = (Math.random() - 0.5) * 10;
-    const zChange = (Math.random() - 0.5) * 10;
-    
-    // Update position
-    aircraft.x += xChange;
-    aircraft.z += zChange;
-  });
-}
-
-// Function to broadcast aircraft positions to all connected clients
-function broadcastAircraftPositions() {
-  if (wss.clients.size === 0) return;
-  
-  const message = {
-    type: 'aircraft_positions',
-    data: Object.values(aircraftData),
-    timestamp: Date.now()
-  };
-  
-  const messageString = JSON.stringify(message);
-  
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(messageString);
-    }
-  });
-}
-
-// Handle WebSocket connections
-wss.on('connection', (ws, req) => {
-  const clientIP = req.socket.remoteAddress;
-  console.log(`📱 Mobile client connected from ${clientIP}`);
-  
-  // Send initial aircraft data to new client
-  const initialMessage = {
-    type: 'aircraft_positions',
-    data: Object.values(aircraftData),
-    timestamp: Date.now()
-  };
-  ws.send(JSON.stringify(initialMessage));
-  
-  // Handle client disconnect
-  ws.on('close', (code, reason) => {
-    console.log(`📱 Mobile client disconnected (${code}: ${reason})`);
-  });
-  
-  // Handle client errors
-  ws.on('error', (error) => {
-    console.error(`📱 Mobile client error:`, error.message);
-  });
-  
-  // Handle incoming messages from clients
-  ws.on('message', (data) => {
-    try {
-      const message = JSON.parse(data);
-      console.log(`📱 Mobile message received:`, message.type);
-      
-      // Echo back a response
-      ws.send(JSON.stringify({
-        type: 'server_response',
-        message: 'Mobile message received',
-        timestamp: Date.now()
-      }));
-    } catch (error) {
-      console.error(`📱 Error parsing mobile message:`, error.message);
-    }
-  });
-});
-
-// Handle WebSocket server errors
-wss.on('error', (error) => {
-  console.error('📱 WebSocket server error:', error);
-});
-
-// Start the position update loop
-const UPDATE_INTERVAL = 2000; // Update every 2 seconds
-setInterval(() => {
-  updateAircraftPositions();
-  broadcastAircraftPositions();
-}, UPDATE_INTERVAL);
+// No WebSocket server needed - mobile clients connect directly to port 8080
 
 // Start the HTTP server
 const PORT = process.env.PORT || 8080;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`📱 Mobile test server running on http://0.0.0.0:${PORT}`);
-  console.log(`📱 WebSocket server running on ws://0.0.0.0:${PORT}`);
   console.log(`📱 Mobile test page: http://0.0.0.0:${PORT}/mobile-test.html`);
-  console.log(`📡 Broadcasting aircraft positions every ${UPDATE_INTERVAL}ms`);
-  console.log(`✈️  Tracking ${Object.keys(aircraftData).length} aircraft: ${Object.keys(aircraftData).join(', ')}`);
+  console.log(`📡 Mobile clients connect directly to port 8080 for WebSocket data`);
   console.log('📱 Ready for mobile connections!');
 });
 
 // Graceful shutdown
 process.on('SIGINT', () => {
   console.log('\n🛑 Shutting down mobile server...');
-  wss.close(() => {
-    server.close(() => {
-      console.log('✅ Mobile server shut down gracefully');
-      process.exit(0);
-    });
+  server.close(() => {
+    console.log('✅ Mobile server shut down gracefully');
+    process.exit(0);
   });
 });
 

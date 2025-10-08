@@ -1,7 +1,13 @@
 const WebSocket = require('ws');
 const http = require('http');
+const aircraftPaths = require('./aircraft-paths');
 
-console.log('🚀 Starting Aircraft WebSocket Server...');
+// When true, restart from the first point after reaching the end
+const LOOP_PATHS = true;
+// Step size for advancing through the path (e.g., 10 -> every 10th point)
+const STEP = 10;
+
+console.log('🚀 Starting Aircraft WebSocket Server with Predetermined Paths...');
 
 // Create HTTP server for health checks
 const server = http.createServer((req, res) => {
@@ -10,152 +16,196 @@ const server = http.createServer((req, res) => {
     status: 'running',
     connectedClients: wss.clients.size,
     uptime: process.uptime(),
-    aircraftCount: Object.keys(aircraftData).length
+    entityCount: Object.keys(entityData).length,
+    pathDataLoaded: aircraftPaths.length > 0
   }));
 });
 
 // Create WebSocket server
 const wss = new WebSocket.Server({ server });
 
-// Aircraft data with initial positions around origin (0,0,0)
-const aircraftData = {
+// Entity data with predetermined paths (includes aircraft and objects)
+const entityData = {
   'N9UX': {
-    tailNumber: 'N9UX',
-    position: {
-      x: 0,
-      y: 0,
-      z: 0
-    },
-    rotation: {
-      yaw: 132.61,
-      roll: -4.28,
-      pitch: -0.36
-    },
-    speed: 150,
-    timestamp: Date.now()
+    id: 'N9UX',
+    type: 'aircraft',
+    position: { x: 0, y: 0, z: 0 },
+    rotation: { yaw: 0, roll: 0, pitch: 0 },
+    timestamp: Date.now(),
+    currentPathIndex: 0,
+    isOnPath: true
   },
-  'N520CX': {
-    tailNumber: 'N520CX',
-    position: {
-      x: 100,
-      y: 0,
-      z: 100
-    },
-    rotation: {
-      yaw: 180.91,
-      roll: -0.88,
-      pitch: 5.49
-    },
-    speed: 200,
-    timestamp: Date.now()
+  'object_123': {
+    id: 'object_123',
+    type: 'unknown',
+    position: { x: 0, y: 0, z: 0 },
+    dimensions: { width: 10, height: 10, length: 10 },
+    timestamp: Date.now(),
+    currentPathIndex: 0,
+    isOnPath: true
   },
-  'N452': {
-    tailNumber: 'N452',
-    position: {
-      x: 2.1,
-      y: 0,
-      z: -1.2
-    },
-    rotation: {
-      yaw: 270,
-      roll: -1,
-      pitch: -2
-    },
-    speed: 180,
-    timestamp: Date.now()
+  'object_456': {
+    id: 'object_456',
+    type: 'unknown',
+    position: { x: 0, y: 0, z: 0 },
+    dimensions: { width: 7, height: 12, length: 6 },
+    timestamp: Date.now(),
+    currentPathIndex: 0,
+    isOnPath: true
   }
 };
 
-// Function to update aircraft positions (simulate movement around origin)
-function updateAircraftPositions() {
-  Object.keys(aircraftData).forEach(tailNumber => {
-    const aircraft = aircraftData[tailNumber];
+// Safely get a path point at a given index for a specific entity ID
+function getPathPointByIndex(index, entityId) {
+  if (index < 0 || index >= aircraftPaths.length) return null;
+  const entry = aircraftPaths[index];
+  if (!entry || typeof entry !== 'object') return null;
+  return entry[entityId] || null;
+}
+
+// Initialize all entities with first position from path data
+function initializeEntities() {
+  Object.keys(entityData).forEach(entityId => {
+    const entity = entityData[entityId];
     
-    // Simulate aircraft movement around origin (0,0,0)
-    const xChange = (Math.random() - 0.5) * 0.1; // Small x changes
-    const yChange = (Math.random() - 0.5) * 0.1; // Small y changes
-    const zChange = (Math.random() - 0.5) * 0.1; // Small z changes
-    
-    // Update position
-    aircraft.position.x += xChange;
-    aircraft.position.y += yChange;
-    aircraft.position.z += zChange;
-    
-    // Update rotation with much more variation
-    const yawChange = (Math.random() - 0.5) * 8; // Much more yaw variation
-    const rollChange = (Math.random() - 0.5) * 6; // Much more roll variation
-    const pitchChange = (Math.random() - 0.5) * 6; // Much more pitch variation
-    
-    aircraft.rotation.yaw = (aircraft.rotation.yaw + yawChange) % 360; // Keep yaw 0-360
-    aircraft.rotation.roll += rollChange;
-    aircraft.rotation.pitch += pitchChange;
-    
-    // Keep rotation values reasonable but allow much more variation
-    aircraft.rotation.roll = Math.max(-75, Math.min(75, aircraft.rotation.roll)); // Limit roll to ±75 degrees
-    aircraft.rotation.pitch = Math.max(-75, Math.min(75, aircraft.rotation.pitch)); // Limit pitch to ±75 degrees
-    
-    // Add some occasional larger movements for more realistic flight behavior
-    if (Math.random() < 0.15) { // 15% chance of larger movement
-      aircraft.rotation.yaw += (Math.random() - 0.5) * 25; // Much larger yaw change
-      aircraft.rotation.roll += (Math.random() - 0.5) * 20; // Much larger roll change
-      aircraft.rotation.pitch += (Math.random() - 0.5) * 20; // Much larger pitch change
-    }
-    
-    // Add some extreme movements occasionally for dramatic flight changes
-    if (Math.random() < 0.05) { // 5% chance of extreme movement
-      aircraft.rotation.yaw += (Math.random() - 0.5) * 45; // Extreme yaw change
-      aircraft.rotation.roll += (Math.random() - 0.5) * 30; // Extreme roll change
-      aircraft.rotation.pitch += (Math.random() - 0.5) * 30; // Extreme pitch change
-    }
-    
-    aircraft.timestamp = Date.now();
-    
-    // Add some variation to speed
-    aircraft.speed += (Math.random() - 0.5) * 10;
-    aircraft.speed = Math.max(50, Math.min(300, aircraft.speed)); // Keep speed reasonable
-    
-    // Keep aircraft within a reasonable range around origin (optional boundary)
-    const maxDistance = 10; // Maximum distance from origin
-    const distance = Math.sqrt(aircraft.position.x * aircraft.position.x + aircraft.position.z * aircraft.position.z);
-    if (distance > maxDistance) {
-      // Pull aircraft back towards origin
-      const factor = maxDistance / distance;
-      aircraft.position.x *= factor;
-      aircraft.position.z *= factor;
+    if (aircraftPaths.length > 0) {
+      // Set initial position to first point
+      const firstPoint = getPathPointByIndex(0, entityId);
+      if (firstPoint) {
+        entity.position.x = firstPoint.position.x;
+        entity.position.y = firstPoint.position.y;
+        entity.position.z = firstPoint.position.z;
+        
+        // Only aircraft have rotation
+        if (firstPoint.rotation && entity.rotation) {
+          entity.rotation.pitch = firstPoint.rotation.pitch;
+          entity.rotation.roll = firstPoint.rotation.roll;
+          entity.rotation.yaw = firstPoint.rotation.yaw;
+        }
+        
+        // Update dimensions if present
+        if (firstPoint.dimensions) {
+          entity.dimensions = { ...firstPoint.dimensions };
+        }
+        
+        // Update type if present
+        if (firstPoint.type) {
+          entity.type = firstPoint.type;
+        }
+      }
+      entity.currentPathIndex = 0;
+      
+      console.log(`✨ Initialized ${entityId} (${entity.type}) with ${aircraftPaths.length} path points`);
+    } else {
+      console.error(`❌ Failed to load path data for ${entityId}`);
     }
   });
 }
 
-// Function to broadcast aircraft positions to all connected clients
-function broadcastAircraftPositions() {
+// Function to update entity positions using predetermined paths
+function updateEntityPositions() {
+  const currentTime = Date.now();
+  
+  Object.keys(entityData).forEach(entityId => {
+    const entity = entityData[entityId];
+    
+    if (entity.isOnPath && aircraftPaths.length > 0) {
+      const pathPoint = getPathPointByIndex(entity.currentPathIndex, entityId);
+
+      if (pathPoint) {
+        // Log the streaming data
+        const logData = {
+          position: pathPoint.position
+        };
+        if (pathPoint.rotation) logData.rotation = pathPoint.rotation;
+        if (pathPoint.dimensions) logData.dimensions = pathPoint.dimensions;
+        
+        console.log(`📡 Streaming ${entity.type} ${entityId} (point ${entity.currentPathIndex + 1}/${aircraftPaths.length}, step ${STEP}):`, logData);
+
+        entity.position.x = pathPoint.position.x;
+        entity.position.y = pathPoint.position.y;
+        entity.position.z = pathPoint.position.z;
+        
+        if (pathPoint.rotation && entity.rotation) {
+          entity.rotation.pitch = pathPoint.rotation.pitch;
+          entity.rotation.roll = pathPoint.rotation.roll;
+          entity.rotation.yaw = pathPoint.rotation.yaw;
+        }
+
+        // Move to next index for the next tick (every Nth point)
+        entity.currentPathIndex = entity.currentPathIndex + STEP;
+
+        // End reached -> either loop or stop
+        if (entity.currentPathIndex >= aircraftPaths.length) {
+          if (LOOP_PATHS) {
+            entity.currentPathIndex = 0;
+            console.log(`🔁 ${entityId} looped back to start`);
+          } else {
+            entity.isOnPath = false;
+            console.log(`✅ ${entityId} completed path`);
+          }
+        }
+      } else {
+        // No point found for this entity in the remaining path entries
+        if (LOOP_PATHS) {
+          entity.currentPathIndex = 0;
+        } else {
+          entity.isOnPath = false;
+        }
+      }
+    }
+    
+    entity.timestamp = currentTime;
+  });
+}
+
+// Function to broadcast entity positions to all connected clients
+function broadcastEntityPositions() {
   if (wss.clients.size === 0) return; // No clients connected
   
-  // Convert aircraft data to the new format with tail numbers as keys
+  // Convert entity data to the format with entity IDs as keys
   const formattedData = {};
-  Object.keys(aircraftData).forEach(tailNumber => {
-    const aircraft = aircraftData[tailNumber];
-    // Use position and rotation objects directly
-    formattedData[tailNumber] = {
+  Object.keys(entityData).forEach(entityId => {
+    const entity = entityData[entityId];
+    
+    formattedData[entityId] = {
+      type: entity.type,
       position: {
-        x: aircraft.position.x,
-        y: aircraft.position.y,
-        z: aircraft.position.z
-      },
-      rotation: {
-        yaw: aircraft.rotation.yaw,
-        roll: aircraft.rotation.roll,
-        pitch: aircraft.rotation.pitch
+        x: entity.position.x,
+        y: entity.position.y,
+        z: entity.position.z
       }
     };
+    
+    // Only include rotation for aircraft
+    if (entity.rotation) {
+      formattedData[entityId].rotation = {
+        yaw: entity.rotation.yaw,
+        roll: entity.rotation.roll,
+        pitch: entity.rotation.pitch
+      };
+    }
+    
+    // Include dimensions for objects
+    if (entity.dimensions) {
+      formattedData[entityId].dimensions = {
+        width: entity.dimensions.width,
+        height: entity.dimensions.height,
+        length: entity.dimensions.length
+      };
+    }
   });
   
   const message = {
-    type: 'aircraft_positions',
+    type: 'entity_positions',
     data: formattedData,
     timestamp: Date.now()
   };
   
   const messageString = JSON.stringify(message);
+  
+  // Log the data being broadcast to clients
+  console.log(`📤 Broadcasting to ${wss.clients.size} client(s): ${Object.keys(formattedData).join(', ')}`);
   
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
@@ -169,26 +219,39 @@ wss.on('connection', (ws, req) => {
   const clientIP = req.socket.remoteAddress;
   console.log(`✅ New client connected from ${clientIP}`);
   
-  // Send initial aircraft data to new client
+  // Send initial entity data to new client
   const formattedData = {};
-  Object.keys(aircraftData).forEach(tailNumber => {
-    const aircraft = aircraftData[tailNumber];
-    formattedData[tailNumber] = {
+  Object.keys(entityData).forEach(entityId => {
+    const entity = entityData[entityId];
+    
+    formattedData[entityId] = {
+      type: entity.type,
       position: {
-        x: aircraft.position.x,
-        y: aircraft.position.y,
-        z: aircraft.position.z
-      },
-      rotation: {
-        yaw: aircraft.rotation.yaw,
-        roll: aircraft.rotation.roll,
-        pitch: aircraft.rotation.pitch
+        x: entity.position.x,
+        y: entity.position.y,
+        z: entity.position.z
       }
     };
+    
+    if (entity.rotation) {
+      formattedData[entityId].rotation = {
+        yaw: entity.rotation.yaw,
+        roll: entity.rotation.roll,
+        pitch: entity.rotation.pitch
+      };
+    }
+    
+    if (entity.dimensions) {
+      formattedData[entityId].dimensions = {
+        width: entity.dimensions.width,
+        height: entity.dimensions.height,
+        length: entity.dimensions.length
+      };
+    }
   });
   
   const initialMessage = {
-    type: 'aircraft_positions',
+    type: 'entity_positions',
     data: formattedData,
     timestamp: Date.now()
   };
@@ -210,6 +273,43 @@ wss.on('connection', (ws, req) => {
       const message = JSON.parse(data);
       console.log(`📨 Received message from ${clientIP}:`, message.type);
       
+      // Handle specific commands
+      switch (message.type) {
+        case 'restart_path':
+          Object.keys(entityData).forEach(entityId => {
+            const entity = entityData[entityId];
+            entity.currentPathIndex = 0;
+            entity.isOnPath = true;
+            console.log(`🔄 Restarted path for ${entityId}`);
+          });
+          break;
+          
+        case 'stop_path':
+          Object.keys(entityData).forEach(entityId => {
+            const entity = entityData[entityId];
+            entity.isOnPath = false;
+            console.log(`⏹️ Stopped path for ${entityId}`);
+          });
+          break;
+          
+        case 'get_path_info':
+          const pathInfo = {};
+          Object.keys(entityData).forEach(entityId => {
+            const entity = entityData[entityId];
+            pathInfo[entityId] = {
+              pointCount: aircraftPaths.length,
+              currentProgress: entity.currentPathIndex,
+              isComplete: entity.currentPathIndex >= aircraftPaths.length
+            };
+          });
+          ws.send(JSON.stringify({
+            type: 'path_info',
+            data: pathInfo,
+            timestamp: Date.now()
+          }));
+          break;
+      }
+      
       // Echo back a response
       ws.send(JSON.stringify({
         type: 'server_response',
@@ -227,11 +327,14 @@ wss.on('error', (error) => {
   console.error('❌ WebSocket server error:', error);
 });
 
+// Initialize entities with path data
+initializeEntities();
+
 // Start the position update loop
-const UPDATE_INTERVAL = 2000; // Update every 2 seconds
+const UPDATE_INTERVAL = 1000; // Update every second
 setInterval(() => {
-  updateAircraftPositions();
-  broadcastAircraftPositions();
+  updateEntityPositions();
+  broadcastEntityPositions();
 }, UPDATE_INTERVAL);
 
 // Start the HTTP server
@@ -239,14 +342,16 @@ const PORT = process.env.PORT || 8080;
 server.listen(PORT, () => {
   console.log(`✅ HTTP server running on http://localhost:${PORT}`);
   console.log(`✅ WebSocket server running on ws://localhost:${PORT}`);
-  console.log(`📡 Broadcasting aircraft positions every ${UPDATE_INTERVAL}ms`);
-  console.log(`✈️  Tracking ${Object.keys(aircraftData).length} aircraft: ${Object.keys(aircraftData).join(', ')}`);
+  console.log(`📡 Broadcasting entity positions every ${UPDATE_INTERVAL}ms`);
+  console.log(`✨ Tracking ${Object.keys(entityData).length} entities: ${Object.keys(entityData).join(', ')}`);
+  console.log(`📂 Using predetermined path data: ${aircraftPaths.length > 0 ? '✅ Loaded' : '❌ Failed'}`);
   console.log('🚀 Server ready for connections!');
 });
 
 // Graceful shutdown
 process.on('SIGINT', () => {
   console.log('\n🛑 Shutting down server...');
+  
   wss.close(() => {
     server.close(() => {
       console.log('✅ Server shut down gracefully');
@@ -265,4 +370,5 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
   process.exit(1);
 });
+
 
