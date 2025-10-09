@@ -339,9 +339,11 @@ setInterval(() => {
 
 // Start the HTTP server
 const PORT = process.env.PORT || 8080;
-server.listen(PORT, () => {
-  console.log(`✅ HTTP server running on http://localhost:${PORT}`);
-  console.log(`✅ WebSocket server running on ws://localhost:${PORT}`);
+const HOST = '0.0.0.0'; // Listen on all network interfaces
+server.listen(PORT, HOST, () => {
+  console.log(`✅ HTTP server running publicly on http://0.0.0.0:${PORT}`);
+  console.log(`✅ WebSocket server running publicly on ws://0.0.0.0:${PORT}`);
+  console.log(`🌐 Server accessible from any network interface`);
   console.log(`📡 Broadcasting entity positions every ${UPDATE_INTERVAL}ms`);
   console.log(`✨ Tracking ${Object.keys(entityData).length} entities: ${Object.keys(entityData).join(', ')}`);
   console.log(`📂 Using predetermined path data: ${aircraftPaths.length > 0 ? '✅ Loaded' : '❌ Failed'}`);
