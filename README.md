@@ -118,7 +118,33 @@ Runs the test client for 30 seconds to verify server functionality.
 
 ## Production Deployment
 
-### Using PM2
+### Cloud Deployment (Recommended)
+
+#### 🆓 Render.com (Free Tier)
+Deploy for free with auto-SSL and WebSocket support:
+
+```bash
+# See RENDER_DEPLOYMENT.md for complete guide
+git push origin main
+# Then deploy via Render dashboard
+```
+
+Your WebSocket will be available at: `wss://your-app-name.onrender.com`
+
+📚 **[Complete Render.com Deployment Guide →](RENDER_DEPLOYMENT.md)**
+
+#### Heroku (Paid - $5+/month)
+```bash
+# See HEROKU_DEPLOYMENT.md for complete guide
+heroku create skyview2-websocket-server
+git push heroku main
+```
+
+📚 **[Complete Heroku Deployment Guide →](HEROKU_DEPLOYMENT.md)**
+
+### Self-Hosted Deployment
+
+#### Using PM2
 
 ```bash
 npm install -g pm2
@@ -127,7 +153,7 @@ pm2 save
 pm2 startup
 ```
 
-### Using Docker
+#### Using Docker
 
 ```dockerfile
 FROM node:18-alpine
