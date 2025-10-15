@@ -53,6 +53,11 @@ wss.on('connection', (ws, req) => {
           handleTrackedObjects(ws, message, clientIP);
           break;
           
+        case 'object_identification':
+          // Client sending object identification to publisher
+          handleObjectIdentification(ws, message, clientIP);
+          break;
+          
         default:
           console.log(`📨 Unknown message type from ${clientIP}:`, message.type);
       }
@@ -181,6 +186,35 @@ function handleTrackedObjects(ws, message, clientIP) {
   }
 }
 
+// Handle object identification from client to publisher
+function handleObjectIdentification(ws, message, clientIP) {
+  const hangarId = message.hangar_id;
+  const data = message.data;
+  
+  if (!hangarId) {
+    console.error(`❌ Object identification missing hangar_id from ${clientIP}`);
+    return;
+  }
+  
+  // Find the publisher for this hangar
+  const publisherWs = publishers.get(hangarId);
+  
+  if (!publisherWs || publisherWs.readyState !== WebSocket.OPEN) {
+    console.log(`⚠️ No active publisher for ${hangarId}, cannot forward object_identification`);
+    return;
+  }
+  
+  // Forward the message to the publisher
+  publisherWs.send(JSON.stringify({
+    type: 'object_identification',
+    hangar_id: hangarId,
+    data: data,
+    timestamp: message.timestamp || Date.now()
+  }));
+  
+  console.log(`📥 Forwarded object_identification to ${hangarId} publisher: ${JSON.stringify(data)}`);
+}
+
 // Handle disconnect
 function handleDisconnect(ws, clientIP, code, reason) {
   if (ws.isPublisher && ws.hangarId) {
@@ -222,6 +256,7 @@ server.listen(PORT, HOST, () => {
   console.log('   Subscribers (Clients):');
   console.log('     - subscribe: { type, hangar_ids: [...] }');
   console.log('     - unsubscribe: { type, hangar_ids: [...] }');
+  console.log('     - object_identification: { type, hangar_id, data }');
 });
 
 // Graceful shutdown

@@ -22,15 +22,34 @@ function generateTrackedObjects(hangarId, previousObjects = null) {
     // Update existing objects with slight position changes
     Object.keys(previousObjects).forEach(oid => {
       const prev = previousObjects[oid];
-      objects[oid] = {
-        position: {
-          x: prev.position.x + (Math.random() - 0.5) * 0.5, // Small movement
-          y: prev.position.y + (Math.random() - 0.5) * 0.5,
-          z: prev.position.z + (Math.random() - 0.5) * 0.1
-        },
-        dimensions: prev.dimensions, // Dimensions stay the same
-        type: prev.type
-      };
+      
+      if (prev.type === 'aircraft') {
+        // Handle aircraft movement with rotations
+        objects[oid] = {
+          position: {
+            x: prev.position.x + (Math.random() - 0.5) * 2.0, // Larger movement for aircraft
+            y: prev.position.y + (Math.random() - 0.5) * 2.0,
+            z: prev.position.z + (Math.random() - 0.5) * 0.5
+          },
+          rotation: {
+            roll: prev.rotation.roll + (Math.random() - 0.5) * 0.1, // Small rotation changes
+            pitch: prev.rotation.pitch + (Math.random() - 0.5) * 0.1,
+            yaw: prev.rotation.yaw + (Math.random() - 0.5) * 0.2
+          },
+          type: 'aircraft'
+        };
+      } else {
+        // Handle unknown objects
+        objects[oid] = {
+          position: {
+            x: prev.position.x + (Math.random() - 0.5) * 0.5, // Small movement
+            y: prev.position.y + (Math.random() - 0.5) * 0.5,
+            z: prev.position.z + (Math.random() - 0.5) * 0.1
+          },
+          dimensions: prev.dimensions, // Dimensions stay the same
+          type: prev.type
+        };
+      }
     });
   } else {
     // Generate new objects
@@ -50,6 +69,21 @@ function generateTrackedObjects(hangarId, previousObjects = null) {
         type: 'unknown'
       };
     }
+    
+    // Add the aircraft N717NT
+    objects['N717NT'] = {
+      position: {
+        x: (Math.random() - 0.5) * 20, // -10 to 10 (smaller area for aircraft)
+        y: (Math.random() - 0.5) * 20,
+        z: -(Math.random() * 3 + 1) // -1 to -4 (higher up)
+      },
+      rotation: {
+        roll: (Math.random() - 0.5) * 0.2, // Small random rotations
+        pitch: (Math.random() - 0.5) * 0.2,
+        yaw: (Math.random() - 0.5) * 0.4
+      },
+      type: 'aircraft'
+    };
   }
   
   return objects;
@@ -119,9 +153,14 @@ class HangarPublisher {
       
       if (message.type === 'registration_confirmed') {
         console.log(`✅ [${this.hangarId}] Registration confirmed`);
+      } else {
+        // Log any other message from client
+        console.log(`📥 [${this.hangarId}] Received message:`, JSON.stringify(message, null, 2));
       }
     } catch (error) {
       console.error(`❌ [${this.hangarId}] Error parsing message:`, error.message);
+      // Also log the raw data if JSON parsing fails
+      console.log(`📥 [${this.hangarId}] Raw message data:`, data.toString());
     }
   }
   
