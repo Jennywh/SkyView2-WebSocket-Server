@@ -7,7 +7,9 @@
     "start": "node aircraft-websocket-server.js",
     "mobile": "node mobile-server.js",
     "dev": "nodemon aircraft-websocket-server.js",
-    "test": "node test-client.js"
+    "test": "node test-client.js",
+    "mock-orin": "node mock-orin-publisher.js",
+    "test-sub": "node test-subscriber.js"
   },
   "keywords": [
     "websocket",
