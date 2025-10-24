@@ -3,7 +3,7 @@ const WebSocket = require('ws');
 console.log('🤖 Starting Mock Orin Publishers...');
 
 // Configuration
-const SERVER_URL = process.env.WS_URL || 'ws://localhost:8080';
+const SERVER_URL = process.env.WS_URL || 'wss://skyview2-websocket-server.onrender.com';
 const HANGARS = ['hangar_1', 'hangar_2', 'hangar_3'];
 const PUBLISH_RATE_HZ = 10; // 10 Hz
 const PUBLISH_INTERVAL_MS = 1000 / PUBLISH_RATE_HZ;
