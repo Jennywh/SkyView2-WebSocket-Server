@@ -9,7 +9,10 @@
     "dev": "nodemon aircraft-websocket-server.js",
     "test": "node test-client.js",
     "mock-orin": "node mock-orin-publisher.js",
-    "test-sub": "node test-subscriber.js"
+    "test-sub": "node test-subscriber.js",
+    "collision": "node collision-points-server.js",
+    "mock-collision": "node mock-collision-points.js",
+    "test-collision": "node test-collision-client.js"
   },
   "keywords": [
     "websocket",
