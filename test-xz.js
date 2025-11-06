@@ -1,1 +1,0 @@
-const WebSocket = require("ws"); const ws = new WebSocket("ws://localhost:8081"); ws.on("message", (data) => { console.log("📡 New X,Z Data Format:"); console.log(JSON.stringify(JSON.parse(data), null, 2)); ws.close(); });
