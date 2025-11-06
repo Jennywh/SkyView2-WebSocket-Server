@@ -4,7 +4,10 @@ console.log('🤖 Starting Mock Orin Publishers...');
 
 // Configuration
 const SERVER_URL = process.env.WS_URL || 'wss://skyview2-websocket-server.onrender.com';
-const HANGARS = ['hangar_1', 'hangar_2', 'hangar_3'];
+const COMPANY = process.env.HANGAR_COMPANY || 'dev-jenny';
+const LOCATION = process.env.HANGAR_LOCATION || 'KJEN';
+const HANGAR_INDICES = [0, 1, 2];
+const HANGARS = HANGAR_INDICES.map((index) => `${COMPANY}-${LOCATION}-${index}`);
 const PUBLISH_RATE_HZ = 10; // 10 Hz
 const PUBLISH_INTERVAL_MS = 1000 / PUBLISH_RATE_HZ;
 
