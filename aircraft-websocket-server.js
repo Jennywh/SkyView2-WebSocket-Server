@@ -58,6 +58,11 @@ wss.on('connection', (ws, req) => {
           handleObjectIdentification(ws, message, clientIP);
           break;
           
+        case 'object_decoupling':
+          // Client sending object decoupling request to publisher
+          handleObjectDecoupling(ws, message, clientIP);
+          break;
+          
         default:
           console.log(`📨 Unknown message type from ${clientIP}:`, message.type);
       }
@@ -215,6 +220,33 @@ function handleObjectIdentification(ws, message, clientIP) {
   console.log(`📥 Forwarded object_identification to ${hangarId} publisher: ${JSON.stringify(data)}`);
 }
 
+// Handle object decoupling from client to publisher
+function handleObjectDecoupling(ws, message, clientIP) {
+  const hangarId = message.hangar_id;
+  const data = message.data;
+
+  if (!hangarId) {
+    console.error(`❌ Object decoupling missing hangar_id from ${clientIP}`);
+    return;
+  }
+
+  const publisherWs = publishers.get(hangarId);
+
+  if (!publisherWs || publisherWs.readyState !== WebSocket.OPEN) {
+    console.log(`⚠️ No active publisher for ${hangarId}, cannot forward object_decoupling`);
+    return;
+  }
+
+  publisherWs.send(JSON.stringify({
+    type: 'object_decoupling',
+    hangar_id: hangarId,
+    data: data,
+    timestamp: message.timestamp || Date.now()
+  }));
+
+  console.log(`📥 Forwarded object_decoupling to ${hangarId} publisher: ${JSON.stringify(data)}`);
+}
+
 // Handle disconnect
 function handleDisconnect(ws, clientIP, code, reason) {
   if (ws.isPublisher && ws.hangarId) {
@@ -257,6 +289,7 @@ server.listen(PORT, HOST, () => {
   console.log('     - subscribe: { type, hangar_ids: [...] }');
   console.log('     - unsubscribe: { type, hangar_ids: [...] }');
   console.log('     - object_identification: { type, hangar_id, data }');
+  console.log('     - object_decoupling: { type, hangar_id, data }');
 });
 
 // Graceful shutdown
