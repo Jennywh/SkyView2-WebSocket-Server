@@ -6,10 +6,45 @@ console.log('🤖 Starting Mock Orin Publishers...');
 const SERVER_URL = process.env.WS_URL || 'wss://skyview2-websocket-server.onrender.com';
 const COMPANY = process.env.HANGAR_COMPANY || 'dev-jenny';
 const LOCATION = process.env.HANGAR_LOCATION || 'KJEN';
-const HANGAR_INDICES = [0, 1, 2];
+const HANGAR_INDICES = [1];
 const HANGARS = HANGAR_INDICES.map((index) => `${COMPANY}-${LOCATION}-${index}`);
 const PUBLISH_RATE_HZ = 10; // 10 Hz
 const PUBLISH_INTERVAL_MS = 1000 / PUBLISH_RATE_HZ;
+const UNKNOWN_OBJECT_NAMES = [
+  'fork lift',
+  'tow tug',
+  'fuel truck',
+  'ground crew',
+  'baggage cart',
+  'maintenance cart',
+  ''
+];
+
+const AIRCRAFT_TAIL_NUMBER = 'N717NT';
+
+function getRandomArrayItem(array) {
+  return array[Math.floor(Math.random() * array.length)];
+}
+
+function getRandomState() {
+  return Math.random() < 0.6 ? 'STATIC' : 'DYNAMIC';
+}
+
+function getInitialVelocity(state) {
+  if (state === 'STATIC') {
+    return 0;
+  }
+  return Number((Math.random() * 2 + 0.1).toFixed(2));
+}
+
+function adjustVelocity(prevVelocity, state) {
+  if (state === 'STATIC') {
+    return 0;
+  }
+
+  const next = prevVelocity + (Math.random() - 0.5) * 0.2;
+  return Number(Math.max(0, next).toFixed(2));
+}
 
 // Object ID generator
 function generateObjectId() {
@@ -25,6 +60,9 @@ function generateTrackedObjects(hangarId, previousObjects = null) {
     // Update existing objects with slight position changes
     Object.keys(previousObjects).forEach(oid => {
       const prev = previousObjects[oid];
+      const state = prev.state || getRandomState();
+      const velocity = adjustVelocity(prev.velocity ?? getInitialVelocity(state), state);
+      const name = prev.name ?? (prev.type === 'aircraft' ? AIRCRAFT_TAIL_NUMBER : getRandomArrayItem(UNKNOWN_OBJECT_NAMES));
       
       if (prev.type === 'aircraft') {
         // Handle aircraft movement with rotations
@@ -39,7 +77,10 @@ function generateTrackedObjects(hangarId, previousObjects = null) {
             pitch: prev.rotation.pitch + (Math.random() - 0.5) * 0.1,
             yaw: prev.rotation.yaw + (Math.random() - 0.5) * 0.2
           },
-          type: 'aircraft'
+          type: 'aircraft',
+          state,
+          velocity,
+          name
         };
       } else {
         // Handle unknown objects
@@ -50,7 +91,10 @@ function generateTrackedObjects(hangarId, previousObjects = null) {
             z: prev.position.z + (Math.random() - 0.5) * 0.1
           },
           dimensions: prev.dimensions, // Dimensions stay the same
-          type: prev.type
+          type: prev.type,
+          state,
+          velocity,
+          name
         };
       }
     });
@@ -58,6 +102,8 @@ function generateTrackedObjects(hangarId, previousObjects = null) {
     // Generate new objects
     for (let i = 0; i < numObjects; i++) {
       const oid = generateObjectId();
+      const state = getRandomState();
+      const velocity = getInitialVelocity(state);
       objects[oid] = {
         position: {
           x: (Math.random() - 0.5) * 60, // -30 to 30
@@ -69,12 +115,16 @@ function generateTrackedObjects(hangarId, previousObjects = null) {
           width: Math.random() * 15 + 5,  // 5-20
           height: Math.random() * 8 + 1    // 1-9
         },
-        type: 'unknown'
+        type: 'unknown',
+        state,
+        velocity,
+        name: getRandomArrayItem(UNKNOWN_OBJECT_NAMES)
       };
     }
     
-    // Add the aircraft N717NT
-    objects['N717NT'] = {
+    // Add the aircraft
+    const aircraftId = generateObjectId();
+    objects[aircraftId] = {
       position: {
         x: (Math.random() - 0.5) * 20, // -10 to 10 (smaller area for aircraft)
         y: (Math.random() - 0.5) * 20,
@@ -85,7 +135,10 @@ function generateTrackedObjects(hangarId, previousObjects = null) {
         pitch: (Math.random() - 0.5) * 0.2,
         yaw: (Math.random() - 0.5) * 0.4
       },
-      type: 'aircraft'
+      type: 'aircraft',
+      state: 'STATIC',
+      velocity: 0,
+      name: AIRCRAFT_TAIL_NUMBER
     };
   }
   
